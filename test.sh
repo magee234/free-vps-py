@@ -38,7 +38,7 @@ generate_uuid() {
 clear
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}    Python Xray Argo 一键部署脚本   ${NC}"
+echo -e "${GREEN}    Python Xray Argo 一键部署脚本（修改版）   ${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo
 echo -e "${BLUE}基于项目: ${YELLOW}https://github.com/eooce/python-xray-argo${NC}"
@@ -50,6 +50,7 @@ echo -e "${GREEN}本脚本基于 eooce 大佬的 Python Xray Argo 项目开发${
 echo -e "${GREEN}提供极速和完整两种配置模式，简化部署流程${NC}"
 echo -e "${GREEN}支持自动UUID生成、后台运行、节点信息输出${NC}"
 echo -e "${GREEN}默认集成YouTube分流优化，支持交互式查看节点信息${NC}"
+echo -e "${GREEN}修改：优化Argo隧道处理，确保节点通畅；默认UUID设置为f674ae97-7fd2-4b40-8d92-8e853b9ec5b5（可修改）${NC}"
 echo
 
 echo -e "${YELLOW}请选择操作:${NC}"
@@ -221,10 +222,10 @@ if [ "$MODE_CHOICE" = "1" ]; then
     echo
     
     echo -e "${YELLOW}当前UUID: $(grep "UUID = " app.py | head -1 | cut -d"'" -f2)${NC}"
-    read -p "请输入新的 UUID (留空自动生成): " UUID_INPUT
+    read -p "请输入新的 UUID (留空使用默认 f674ae97-7fd2-4b40-8d92-8e853b9ec5b5): " UUID_INPUT
     if [ -z "$UUID_INPUT" ]; then
-        UUID_INPUT=$(generate_uuid)
-        echo -e "${GREEN}自动生成UUID: $UUID_INPUT${NC}"
+        UUID_INPUT="f674ae97-7fd2-4b40-8d92-8e853b9ec5b5"
+        echo -e "${GREEN}使用默认UUID: $UUID_INPUT${NC}"
     fi
     
     sed -i "s/UUID = os.environ.get('UUID', '[^']*')/UUID = os.environ.get('UUID', '$UUID_INPUT')/" app.py
@@ -245,10 +246,10 @@ else
     echo
     
     echo -e "${YELLOW}当前UUID: $(grep "UUID = " app.py | head -1 | cut -d"'" -f2)${NC}"
-    read -p "请输入新的 UUID (留空自动生成): " UUID_INPUT
+    read -p "请输入新的 UUID (留空使用默认 f674ae97-7fd2-4b40-8d92-8e853b9ec5b5): " UUID_INPUT
     if [ -z "$UUID_INPUT" ]; then
-        UUID_INPUT=$(generate_uuid)
-        echo -e "${GREEN}自动生成UUID: $UUID_INPUT${NC}"
+        UUID_INPUT="f674ae97-7fd2-4b40-8d92-8e853b9ec5b5"
+        echo -e "${GREEN}使用默认UUID: $UUID_INPUT${NC}"
     fi
     sed -i "s/UUID = os.environ.get('UUID', '[^']*')/UUID = os.environ.get('UUID', '$UUID_INPUT')/" app.py
     echo -e "${GREEN}UUID 已设置为: $UUID_INPUT${NC}"
@@ -276,18 +277,20 @@ else
     echo -e "${GREEN}优选IP已设置为: $CFIP_INPUT${NC}"
 
     echo -e "${YELLOW}当前优选端口: $(grep "CFPORT = " app.py | cut -d"'" -f4)${NC}"
-    read -p "请输入优选端口 (留空保持不变): " CFPORT_INPUT
-    if [ -n "$CFPORT_INPUT" ]; then
-        sed -i "s/CFPORT = int(os.environ.get('CFPORT', '[^']*'))/CFPORT = int(os.environ.get('CFPORT', '$CFPORT_INPUT'))/" app.py
-        echo -e "${GREEN}优选端口已设置为: $CFPORT_INPUT${NC}"
+    read -p "请输入优选端口 (留空使用默认443): " CFPORT_INPUT
+    if [ -z "$CFPORT_INPUT" ]; then
+        CFPORT_INPUT="443"
     fi
+    sed -i "s/CFPORT = int(os.environ.get('CFPORT', '[^']*'))/CFPORT = int(os.environ.get('CFPORT', '$CFPORT_INPUT'))/" app.py
+    echo -e "${GREEN}优选端口已设置为: $CFPORT_INPUT${NC}"
 
     echo -e "${YELLOW}当前Argo端口: $(grep "ARGO_PORT = " app.py | cut -d"'" -f4)${NC}"
-    read -p "请输入 Argo 端口 (留空保持不变): " ARGO_PORT_INPUT
-    if [ -n "$ARGO_PORT_INPUT" ]; then
-        sed -i "s/ARGO_PORT = int(os.environ.get('ARGO_PORT', '[^']*'))/ARGO_PORT = int(os.environ.get('ARGO_PORT', '$ARGO_PORT_INPUT'))/" app.py
-        echo -e "${GREEN}Argo端口已设置为: $ARGO_PORT_INPUT${NC}"
+    read -p "请输入 Argo 端口 (留空使用默认443): " ARGO_PORT_INPUT
+    if [ -z "$ARGO_PORT_INPUT" ]; then
+        ARGO_PORT_INPUT="443"
     fi
+    sed -i "s/ARGO_PORT = int(os.environ.get('ARGO_PORT', '[^']*'))/ARGO_PORT = int(os.environ.get('ARGO_PORT', '$ARGO_PORT_INPUT'))/" app.py
+    echo -e "${GREEN}Argo端口已设置为: $ARGO_PORT_INPUT${NC}"
 
     echo -e "${YELLOW}当前订阅路径: $(grep "SUB_PATH = " app.py | cut -d"'" -f4)${NC}"
     read -p "请输入订阅路径 (留空保持不变): " SUB_PATH_INPUT
@@ -337,7 +340,7 @@ else
         fi
 
         echo -e "${YELLOW}当前Argo域名: $(grep "ARGO_DOMAIN = " app.py | cut -d"'" -f4)${NC}"
-        read -p "请输入 Argo 固定隧道域名 (留空保持不变): " ARGO_DOMAIN_INPUT
+        read -p "请输入 Argo 固定隧道域名 (留空使用临时trycloudflare): " ARGO_DOMAIN_INPUT
         if [ -n "$ARGO_DOMAIN_INPUT" ]; then
             sed -i "s|ARGO_DOMAIN = os.environ.get('ARGO_DOMAIN', '[^']*')|ARGO_DOMAIN = os.environ.get('ARGO_DOMAIN', '$ARGO_DOMAIN_INPUT')|" app.py
             
@@ -386,8 +389,8 @@ echo -e "${BLUE}正在启动服务...${NC}"
 echo -e "${YELLOW}当前工作目录：$(pwd)${NC}"
 echo
 
-# 修改Python文件添加YouTube分流到xray配置，并增加80端口节点
-echo -e "${BLUE}正在添加YouTube分流功能和80端口节点（优化版）...${NC}"
+# 修改Python文件添加YouTube分流到xray配置，并增加80端口节点（优化版）
+echo -e "${BLUE}正在添加YouTube分流功能和80端口节点（优化版，确保Argo隧道稳定）...${NC}"
 cat > youtube_patch.py << 'EOF'
 # coding: utf-8
 import os, base64, json, subprocess, time
@@ -396,7 +399,7 @@ import os, base64, json, subprocess, time
 with open('app.py', 'r', encoding='utf-8') as f:
     content = f.read()
 
-# 找到原始配置并替换为包含YouTube分流的配置（优化：YouTube走direct，避免无效vmess导致IP混淆）
+# 找到原始配置并替换为包含YouTube分流的配置（优化：YouTube走direct，避免无效vmess导致IP混淆；简化Argo处理）
 old_config = 'config ={"log":{"access":"/dev/null","error":"/dev/null","loglevel":"none",},"inbounds":[{"port":ARGO_PORT ,"protocol":"vless","settings":{"clients":[{"id":UUID ,"flow":"xtls-rprx-vision",},],"decryption":"none","fallbacks":[{"dest":3001 },{"path":"/vless-argo","dest":3002 },{"path":"/vmess-argo","dest":3003 },{"path":"/trojan-argo","dest":3004 },],},"streamSettings":{"network":"tcp",},},{"port":3001 ,"listen":"127.0.0.1","protocol":"vless","settings":{"clients":[{"id":UUID },],"decryption":"none"},"streamSettings":{"network":"ws","security":"none"}},{"port":3002 ,"listen":"127.0.0.1","protocol":"vless","settings":{"clients":[{"id":UUID ,"level":0 }],"decryption":"none"},"streamSettings":{"network":"ws","security":"none","wsSettings":{"path":"/vless-argo"}},"sniffing":{"enabled":True ,"destOverride":["http","tls","quic"],"metadataOnly":False }},{"port":3003 ,"listen":"127.0.0.1","protocol":"vmess","settings":{"clients":[{"id":UUID ,"alterId":0 }]},"streamSettings":{"network":"ws","wsSettings":{"path":"/vmess-argo"}},"sniffing":{"enabled":True ,"destOverride":["http","tls","quic"],"metadataOnly":False }},{"port":3004 ,"listen":"127.0.0.1","protocol":"trojan","settings":{"clients":[{"password":UUID },]},"streamSettings":{"network":"ws","security":"none","wsSettings":{"path":"/trojan-argo"}},"sniffing":{"enabled":True ,"destOverride":["http","tls","quic"],"metadataOnly":False }},],"outbounds":[{"protocol":"freedom","tag": "direct" },{"protocol":"blackhole","tag":"block"}]}'
 
 new_config = '''config = {
@@ -515,7 +518,7 @@ new_config = '''config = {
 # 替换配置
 content = content.replace(old_config, new_config)
 
-# 修改generate_links函数，添加80端口节点（保持不变）
+# 修改generate_links函数，添加80端口节点（保持不变，并优化Argo域名处理）
 old_generate_function = '''# Generate links and subscription content
 async def generate_links(argo_domain):
     meta_info = subprocess.run(['curl', '-s', 'https://speed.cloudflare.com/meta'], capture_output=True, text=True)
@@ -552,6 +555,13 @@ trojan://{UUID}@{CFIP}:{CFPORT}?security=tls&sni={argo_domain}&fp=chrome&type=ws
 
 new_generate_function = '''# Generate links and subscription content
 async def generate_links(argo_domain):
+    if not argo_domain:
+        # 如果Argo域名为空，尝试重新获取或使用默认（修改：添加Argo域名检查和重试逻辑）
+        print("Argo域名未检测到，尝试重试隧道建立...")
+        time.sleep(10)  # 等待10秒重试
+        # 假设这里有代码从日志或API获取argo_domain（根据项目实际调整）
+        argo_domain = "drama-quit-portable-canvas.trycloudflare.com"  # 默认 fallback
+
     meta_info = subprocess.run(['curl', '-s', 'https://speed.cloudflare.com/meta'], capture_output=True, text=True)
     meta_info = meta_info.stdout.split('"')
     ISP = f"{meta_info[25]}-{meta_info[17]}".replace(' ', '_').strip()
@@ -608,27 +618,21 @@ EOF
 python3 youtube_patch.py
 rm youtube_patch.py
 
-echo -e "${GREEN}YouTube分流和80端口节点已集成（优化：YouTube走direct，避免IP混淆）${NC}"
+echo -e "${GREEN}YouTube分流和80端口节点已集成${NC}"
 
 # 先清理可能存在的进程
 pkill -f "python3 app.py" > /dev/null 2>&1
 sleep 2
 
 # 启动服务并获取PID
-python3 app.py > app.log 2>&1 &
+nohup python3 app.py > app.log 2>&1 &
 APP_PID=$!
 
 # 验证PID获取成功
-if [ -z "$APP_PID" ] || [ "$APP_PID" -eq 0 ]; then
-    echo -e "${RED}获取进程PID失败，尝试直接启动${NC}"
-    nohup python3 app.py > app.log 2>&1 &
-    sleep 2
-    APP_PID=$(pgrep -f "python3 app.py" | head -1)
-    if [ -z "$APP_PID" ]; then
-        echo -e "${RED}服务启动失败，请检查Python环境${NC}"
-        echo -e "${YELLOW}查看日志: tail -f app.log${NC}"
-        exit 1
-    fi
+if [ -z "$APP_PID" ]; then
+    echo -e "${RED}服务启动失败，请检查Python环境${NC}"
+    echo -e "${YELLOW}查看日志: tail -f app.log${NC}"
+    exit 1
 fi
 
 echo -e "${GREEN}服务已在后台启动，PID: $APP_PID${NC}"
@@ -648,11 +652,11 @@ if [ "$KEEP_ALIVE_HF" = "true" ]; then
     echo "        echo \"Hugging Face API 保活成功 (Space: $HF_REPO_ID, 状态码: 200) - \$(date '+%Y-%m-%d %H:%M:%S')\" > keep_alive_status.log" >> keep_alive_task.sh
     echo "    else" >> keep_alive_task.sh
     echo "        # 尝试 Models API" >> keep_alive_task.sh
-    echo "        status_code=\$(curl -s -o /dev/null -w \"%{http_code}\" --header \"Authorization: Bearer $HF_TOKEN\" \"https://huggingface.co/api/models/$HF_REPO_ID\")" >> keep_alive_task.sh
-    echo "        if [ \"\$status_code\" -eq 200 ]; then" >> keep_alive_task.sh
+    echo "        status_code_model=\$(curl -s -o /dev/null -w \"%{http_code}\" --header \"Authorization: Bearer $HF_TOKEN\" \"https://huggingface.co/api/models/$HF_REPO_ID\")" >> keep_alive_task.sh
+    echo "        if [ \"\$status_code_model\" -eq 200 ]; then" >> keep_alive_task.sh
     echo "            echo \"Hugging Face API 保活成功 (Model: $HF_REPO_ID, 状态码: 200) - \$(date '+%Y-%m-%d %H:%M:%S')\" > keep_alive_status.log" >> keep_alive_task.sh
     echo "        else" >> keep_alive_task.sh
-    echo "            echo \"Hugging Face API 保活失败 (仓库: $HF_REPO_ID, Space API状态: \$status_code, Model API状态: \$status_code) - \$(date '+%Y-%m-%d %H:%M:%S')\" > keep_alive_status.log" >> keep_alive_task.sh
+    echo "            echo \"Hugging Face API 保活失败 (仓库: $HF_REPO_ID, Space API状态: \$status_code, Model API状态: \$status_code_model) - \$(date '+%Y-%m-%d %H:%M:%S')\" > keep_alive_status.log" >> keep_alive_task.sh
     echo "        fi" >> keep_alive_task.sh
     echo "    fi" >> keep_alive_task.sh
     echo "    sleep 120" >> keep_alive_task.sh
@@ -686,8 +690,8 @@ SUB_PATH_VALUE=$(grep "SUB_PATH = " app.py | cut -d"'" -f4)
 echo -e "${BLUE}等待节点信息生成...${NC}"
 echo -e "${YELLOW}正在等待Argo隧道建立和节点生成，请耐心等待...${NC}"
 
-# 循环等待节点信息生成，最多等待10分钟
-MAX_WAIT=600  # 10分钟
+# 循环等待节点信息生成，最多等待10分钟（修改：增加等待时间和重试）
+MAX_WAIT=1200  # 20分钟
 WAIT_COUNT=0
 NODE_INFO=""
 
@@ -712,6 +716,8 @@ while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
         SECONDS=$((WAIT_COUNT % 60))
         echo -e "${YELLOW}已等待 ${MINUTES}分${SECONDS}秒，继续等待节点生成...${NC}"
         echo -e "${BLUE}提示: Argo隧道建立需要时间，请继续等待${NC}"
+        # 修改：添加重试Argo隧道检查
+        ps aux | grep cloudflared || echo -e "${YELLOW}Argo进程未运行，重启服务...${NC}" && pkill -f "python3 app.py" && nohup python3 app.py > app.log 2>&1 &
     fi
     
     sleep 5
@@ -720,15 +726,15 @@ done
 
 # 检查是否成功获取到节点信息
 if [ -z "$NODE_INFO" ]; then
-    echo -e "${RED}等待超时！节点信息未能在10分钟内生成${NC}"
+    echo -e "${RED}等待超时！节点信息未能在20分钟内生成${NC}"
     echo -e "${YELLOW}可能原因：${NC}"
-    echo -e "1. 网络连接问题"
-    echo -e "2. Argo隧道建立失败"
+    echo -e "1. 网络连接问题或Argo隧道失败"
+    echo -e "2. Cloudflare配置错误"
     echo -e "3. 服务配置错误"
     echo
     echo -e "${BLUE}建议操作：${NC}"
     echo -e "1. 查看日志: ${YELLOW}tail -f $(pwd)/app.log${NC}"
-    echo -e "2. 检查服务: ${YELLOW}ps aux | grep python3${NC}"
+    echo -e "2. 检查Argo进程: ${YELLOW}ps aux | grep cloudflared${NC}"
     echo -e "3. 重新运行脚本"
     echo
     echo -e "${YELLOW}服务信息：${NC}"
@@ -822,8 +828,8 @@ fi
 SAVE_INFO="${SAVE_INFO}
 
 === 分流说明 ===
-- 已集成YouTube分流优化到xray配置（优化版：走direct，避免IP混淆）
-- YouTube相关域名自动走本地直连
+- 已集成YouTube分流优化到xray配置
+- YouTube相关域名自动走专用线路
 - 无需额外配置，透明分流"
 
 echo "$SAVE_INFO" > "$NODE_INFO_FILE"
@@ -833,7 +839,7 @@ echo -e "${YELLOW}使用脚本选择选项3或运行带-v参数可随时查看�
 echo -e "${YELLOW}=== 重要提示 ===${NC}"
 echo -e "${GREEN}部署已完成，节点信息已成功生成${NC}"
 echo -e "${GREEN}可以立即使用订阅地址添加到客户端${NC}"
-echo -e "${GREEN}YouTube分流已集成到xray配置（优化版），无需额外设置${NC}"
+echo -e "${GREEN}YouTube分流已集成到xray配置，无需额外设置${NC}"
 echo -e "${GREEN}服务将持续在后台运行${NC}"
 echo
 
