@@ -387,7 +387,7 @@ echo -e "${YELLOW}当前工作目录：$(pwd)${NC}"
 echo
 
 # 修改Python文件添加YouTube分流到xray配置，并增加80端口节点
-echo -e "${BLUE}正在添加YouTube分流功能和80端口节点...${NC}"
+echo -e "${BLUE}正在添加YouTube分流功能和80端口节点（优化版）...${NC}"
 cat > youtube_patch.py << 'EOF'
 # coding: utf-8
 import os, base64, json, subprocess, time
@@ -396,7 +396,7 @@ import os, base64, json, subprocess, time
 with open('app.py', 'r', encoding='utf-8') as f:
     content = f.read()
 
-# 找到原始配置并替换为包含YouTube分流的配置
+# 找到原始配置并替换为包含YouTube分流的配置（优化：YouTube走direct，避免无效vmess导致IP混淆）
 old_config = 'config ={"log":{"access":"/dev/null","error":"/dev/null","loglevel":"none",},"inbounds":[{"port":ARGO_PORT ,"protocol":"vless","settings":{"clients":[{"id":UUID ,"flow":"xtls-rprx-vision",},],"decryption":"none","fallbacks":[{"dest":3001 },{"path":"/vless-argo","dest":3002 },{"path":"/vmess-argo","dest":3003 },{"path":"/trojan-argo","dest":3004 },],},"streamSettings":{"network":"tcp",},},{"port":3001 ,"listen":"127.0.0.1","protocol":"vless","settings":{"clients":[{"id":UUID },],"decryption":"none"},"streamSettings":{"network":"ws","security":"none"}},{"port":3002 ,"listen":"127.0.0.1","protocol":"vless","settings":{"clients":[{"id":UUID ,"level":0 }],"decryption":"none"},"streamSettings":{"network":"ws","security":"none","wsSettings":{"path":"/vless-argo"}},"sniffing":{"enabled":True ,"destOverride":["http","tls","quic"],"metadataOnly":False }},{"port":3003 ,"listen":"127.0.0.1","protocol":"vmess","settings":{"clients":[{"id":UUID ,"alterId":0 }]},"streamSettings":{"network":"ws","wsSettings":{"path":"/vmess-argo"}},"sniffing":{"enabled":True ,"destOverride":["http","tls","quic"],"metadataOnly":False }},{"port":3004 ,"listen":"127.0.0.1","protocol":"trojan","settings":{"clients":[{"password":UUID },]},"streamSettings":{"network":"ws","security":"none","wsSettings":{"path":"/trojan-argo"}},"sniffing":{"enabled":True ,"destOverride":["http","tls","quic"],"metadataOnly":False }},],"outbounds":[{"protocol":"freedom","tag": "direct" },{"protocol":"blackhole","tag":"block"}]}'
 
 new_config = '''config = {
@@ -488,21 +488,7 @@ new_config = '''config = {
         ],
         "outbounds": [
             {"protocol": "freedom", "tag": "direct"},
-            {
-                "protocol": "vmess",
-                "tag": "youtube",
-                "settings": {
-                    "vnext": [{
-                        "address": "172.233.171.224",
-                        "port": 16416,
-                        "users": [{
-                            "id": "8c1b9bea-cb51-43bb-a65c-0af31bbbf145",
-                            "alterId": 0
-                        }]
-                    }]
-                },
-                "streamSettings": {"network": "tcp"}
-            },
+            {"protocol": "freedom", "tag": "youtube"},  # 优化：改为freedom (direct)，避免无效vmess导致IP混淆
             {"protocol": "blackhole", "tag": "block"}
         ],
         "routing": {
@@ -511,6 +497,7 @@ new_config = '''config = {
                 {
                     "type": "field",
                     "domain": [
+                        "geosite:youtube",  # 优化：优先使用geosite（如果Xray有geosite.dat），fallback到域名列表
                         "youtube.com", "youtu.be",
                         "googlevideo.com",
                         "ytimg.com",
@@ -519,7 +506,7 @@ new_config = '''config = {
                         "ggpht.com",
                         "googleusercontent.com"
                     ],
-                    "outboundTag": "youtube"
+                    "outboundTag": "direct"  # 优化：直接走direct，避免代理问题
                 }
             ]
         }
@@ -528,7 +515,7 @@ new_config = '''config = {
 # 替换配置
 content = content.replace(old_config, new_config)
 
-# 修改generate_links函数，添加80端口节点
+# 修改generate_links函数，添加80端口节点（保持不变）
 old_generate_function = '''# Generate links and subscription content
 async def generate_links(argo_domain):
     meta_info = subprocess.run(['curl', '-s', 'https://speed.cloudflare.com/meta'], capture_output=True, text=True)
@@ -615,13 +602,13 @@ content = content.replace(old_generate_function, new_generate_function)
 with open('app.py', 'w', encoding='utf-8') as f:
     f.write(content)
 
-print("YouTube分流配置和80端口节点已成功添加")
+print("YouTube分流配置和80端口节点已成功添加（优化版）")
 EOF
 
 python3 youtube_patch.py
 rm youtube_patch.py
 
-echo -e "${GREEN}YouTube分流和80端口节点已集成${NC}"
+echo -e "${GREEN}YouTube分流和80端口节点已集成（优化：YouTube走direct，避免IP混淆）${NC}"
 
 # 先清理可能存在的进程
 pkill -f "python3 app.py" > /dev/null 2>&1
@@ -661,11 +648,11 @@ if [ "$KEEP_ALIVE_HF" = "true" ]; then
     echo "        echo \"Hugging Face API 保活成功 (Space: $HF_REPO_ID, 状态码: 200) - \$(date '+%Y-%m-%d %H:%M:%S')\" > keep_alive_status.log" >> keep_alive_task.sh
     echo "    else" >> keep_alive_task.sh
     echo "        # 尝试 Models API" >> keep_alive_task.sh
-    echo "        status_code_model=\$(curl -s -o /dev/null -w \"%{http_code}\" --header \"Authorization: Bearer $HF_TOKEN\" \"https://huggingface.co/api/models/$HF_REPO_ID\")" >> keep_alive_task.sh
-    echo "        if [ \"\$status_code_model\" -eq 200 ]; then" >> keep_alive_task.sh
+    echo "        status_code=\$(curl -s -o /dev/null -w \"%{http_code}\" --header \"Authorization: Bearer $HF_TOKEN\" \"https://huggingface.co/api/models/$HF_REPO_ID\")" >> keep_alive_task.sh
+    echo "        if [ \"\$status_code\" -eq 200 ]; then" >> keep_alive_task.sh
     echo "            echo \"Hugging Face API 保活成功 (Model: $HF_REPO_ID, 状态码: 200) - \$(date '+%Y-%m-%d %H:%M:%S')\" > keep_alive_status.log" >> keep_alive_task.sh
     echo "        else" >> keep_alive_task.sh
-    echo "            echo \"Hugging Face API 保活失败 (仓库: $HF_REPO_ID, Space API状态: \$status_code, Model API状态: \$status_code_model) - \$(date '+%Y-%m-%d %H:%M:%S')\" > keep_alive_status.log" >> keep_alive_task.sh
+    echo "            echo \"Hugging Face API 保活失败 (仓库: $HF_REPO_ID, Space API状态: \$status_code, Model API状态: \$status_code) - \$(date '+%Y-%m-%d %H:%M:%S')\" > keep_alive_status.log" >> keep_alive_task.sh
     echo "        fi" >> keep_alive_task.sh
     echo "    fi" >> keep_alive_task.sh
     echo "    sleep 120" >> keep_alive_task.sh
@@ -835,8 +822,8 @@ fi
 SAVE_INFO="${SAVE_INFO}
 
 === 分流说明 ===
-- 已集成YouTube分流优化到xray配置
-- YouTube相关域名自动走专用线路
+- 已集成YouTube分流优化到xray配置（优化版：走direct，避免IP混淆）
+- YouTube相关域名自动走本地直连
 - 无需额外配置，透明分流"
 
 echo "$SAVE_INFO" > "$NODE_INFO_FILE"
@@ -846,7 +833,7 @@ echo -e "${YELLOW}使用脚本选择选项3或运行带-v参数可随时查看�
 echo -e "${YELLOW}=== 重要提示 ===${NC}"
 echo -e "${GREEN}部署已完成，节点信息已成功生成${NC}"
 echo -e "${GREEN}可以立即使用订阅地址添加到客户端${NC}"
-echo -e "${GREEN}YouTube分流已集成到xray配置，无需额外设置${NC}"
+echo -e "${GREEN}YouTube分流已集成到xray配置（优化版），无需额外设置${NC}"
 echo -e "${GREEN}服务将持续在后台运行${NC}"
 echo
 
